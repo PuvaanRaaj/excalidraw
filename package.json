@@ -91,5 +91,10 @@
   },
   "resolutions": {
     "strip-ansi": "6.0.1"
+  },
+  "dependencies": {
+    "@neondatabase/auth": "0.4.1-beta",
+    "@neondatabase/serverless": "1.1.0",
+    "jose": "6.2.3"
   }
 }

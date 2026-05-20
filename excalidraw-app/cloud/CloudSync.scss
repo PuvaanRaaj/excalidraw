@@ -1,0 +1,119 @@
+.CloudSync {
+  position: fixed;
+  z-index: 10;
+  top: 72px;
+  right: 16px;
+  width: min(360px, calc(100vw - 32px));
+  color: var(--text-primary-color);
+  font-family: var(--ui-font);
+}
+
+.CloudSync__toggle {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--island-bg-color);
+  color: var(--text-primary-color);
+  cursor: pointer;
+}
+
+.CloudSync__panel {
+  margin-top: 8px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--island-bg-color);
+  box-shadow: var(--shadow-island);
+  padding: 12px;
+}
+
+.CloudSync__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.CloudSync__status {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.CloudSync__form {
+  display: grid;
+  gap: 8px;
+}
+
+.CloudSync__input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--input-bg-color);
+  color: var(--text-primary-color);
+  padding: 0 10px;
+}
+
+.CloudSync__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.CloudSync__button {
+  height: 32px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--button-gray-1);
+  color: var(--text-primary-color);
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.CloudSync__button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.CloudSync__button--primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.CloudSync__list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.CloudSync__drawing {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.CloudSync__drawingTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.CloudSync__drawingMeta,
+.CloudSync__message {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+}
+
+.CloudSync__danger {
+  color: var(--color-danger);
+}
