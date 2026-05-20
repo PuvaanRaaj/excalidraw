@@ -12,6 +12,7 @@ interface StreamingOptions {
   messages: readonly LLMMessage[];
   onChunk?: (chunk: string) => void;
   extractRateLimits?: boolean;
+  headers?: HeadersInit;
   signal?: AbortSignal;
   onStreamCreated?: () => void;
 }
@@ -90,6 +91,7 @@ export async function TTDStreamFetch(
     onChunk,
     onStreamCreated,
     extractRateLimits = true,
+    headers,
     signal,
   } = options;
 
@@ -103,6 +105,7 @@ export async function TTDStreamFetch(
       headers: {
         Accept: "text/event-stream",
         "Content-Type": "application/json",
+        ...headers,
       },
       body: JSON.stringify({ messages }),
       signal,

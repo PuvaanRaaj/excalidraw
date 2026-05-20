@@ -8,10 +8,170 @@ import {
 } from "@excalidraw/excalidraw";
 import { getDataURL } from "@excalidraw/excalidraw/data/blob";
 import { safelyParseJSON } from "@excalidraw/common";
+import { useEffect, useState } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { TTDIndexedDBAdapter } from "../data/TTDStorage";
+
+import "./AI.scss";
+
+type AIProvider = "openai" | "anthropic" | "deepseek";
+
+type AISettings = {
+  provider: AIProvider;
+  model: string;
+  apiKey: string;
+};
+
+const AI_SETTINGS_KEY = "excalidraw-ai-settings-v1";
+
+const DEFAULT_MODELS: Record<AIProvider, string> = {
+  openai: "gpt-4.1-mini",
+  anthropic: "claude-3-5-sonnet-latest",
+  deepseek: "deepseek-chat",
+};
+
+const PROVIDER_LABELS: Record<AIProvider, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  deepseek: "DeepSeek",
+};
+
+const getDefaultAISettings = (): AISettings => ({
+  provider: "openai",
+  model: DEFAULT_MODELS.openai,
+  apiKey: "",
+});
+
+const readAISettings = (): AISettings => {
+  try {
+    const raw = window.localStorage.getItem(AI_SETTINGS_KEY);
+    if (!raw) {
+      return getDefaultAISettings();
+    }
+
+    return {
+      ...getDefaultAISettings(),
+      ...JSON.parse(raw),
+    };
+  } catch {
+    return getDefaultAISettings();
+  }
+};
+
+const writeAISettings = (settings: AISettings) => {
+  window.localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+};
+
+const getAIRequestHeaders = () => {
+  const settings = readAISettings();
+
+  if (!settings.apiKey.trim()) {
+    throw new Error("Add an AI API key from the AI button before using AI.");
+  }
+
+  return {
+    "X-AI-Provider": settings.provider,
+    "X-AI-Model": settings.model || DEFAULT_MODELS[settings.provider],
+    "X-AI-API-Key": settings.apiKey.trim(),
+  };
+};
+
+export const AISettingsButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [settings, setSettings] = useState<AISettings>(getDefaultAISettings);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setSettings(readAISettings());
+  }, []);
+
+  const updateSettings = (nextSettings: AISettings) => {
+    setSettings(nextSettings);
+    setSaved(false);
+  };
+
+  return (
+    <div
+      className="AISettings"
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+    >
+      <button
+        className="AISettings__toggle"
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+      >
+        AI
+      </button>
+      {isOpen && (
+        <div className="AISettings__panel">
+          <div className="AISettings__header">
+            <span>AI settings</span>
+            {saved && <span>Saved</span>}
+          </div>
+          <label className="AISettings__label" htmlFor="ai-provider">
+            Provider
+          </label>
+          <select
+            id="ai-provider"
+            className="AISettings__input"
+            value={settings.provider}
+            onChange={(event) => {
+              const provider = event.target.value as AIProvider;
+              updateSettings({
+                ...settings,
+                provider,
+                model: DEFAULT_MODELS[provider],
+              });
+            }}
+          >
+            {(["openai", "anthropic", "deepseek"] as const).map((provider) => (
+              <option key={provider} value={provider}>
+                {PROVIDER_LABELS[provider]}
+              </option>
+            ))}
+          </select>
+          <label className="AISettings__label" htmlFor="ai-model">
+            Model
+          </label>
+          <input
+            id="ai-model"
+            className="AISettings__input"
+            value={settings.model}
+            onChange={(event) =>
+              updateSettings({ ...settings, model: event.target.value })
+            }
+          />
+          <label className="AISettings__label" htmlFor="ai-api-key">
+            API key
+          </label>
+          <input
+            id="ai-api-key"
+            className="AISettings__input"
+            type="password"
+            placeholder={`${PROVIDER_LABELS[settings.provider]} API key`}
+            value={settings.apiKey}
+            onChange={(event) =>
+              updateSettings({ ...settings, apiKey: event.target.value })
+            }
+          />
+          <button
+            className="AISettings__button"
+            type="button"
+            onClick={() => {
+              writeAISettings(settings);
+              setSaved(true);
+            }}
+          >
+            Save
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const AIComponents = ({
   excalidrawAPI,
@@ -49,6 +209,7 @@ export const AIComponents = ({
               headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
+                ...getAIRequestHeaders(),
               },
               body: JSON.stringify({
                 texts: textFromFrameChildren,
@@ -111,6 +272,7 @@ export const AIComponents = ({
             onChunk,
             onStreamCreated,
             extractRateLimits: true,
+            headers: getAIRequestHeaders(),
             signal,
           });
 

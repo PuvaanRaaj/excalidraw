@@ -132,7 +132,7 @@ import DebugCanvas, {
   isVisualDebuggerEnabled,
   loadSavedDebugState,
 } from "./components/DebugCanvas";
-import { AIComponents } from "./components/AI";
+import { AIComponents, AISettingsButton } from "./components/AI";
 import { CloudSync } from "./cloud/CloudSync";
 
 import "./index.scss";
@@ -950,20 +950,28 @@ const ExcalidrawWrapper = () => {
         autoFocus={true}
         theme={editorTheme}
         renderTopRightUI={(isMobile) => {
-          if (isMobile || !collabAPI || isCollabDisabled) {
+          if (isMobile) {
             return null;
           }
 
           return (
             <div className="excalidraw-ui-top-right">
-              {collabError.message && <CollabError collabError={collabError} />}
-              <LiveCollaborationTrigger
-                isCollaborating={isCollaborating}
-                onSelect={() =>
-                  setShareDialogState({ isOpen: true, type: "share" })
-                }
-                editorInterface={editorInterface}
-              />
+              <AISettingsButton />
+              {excalidrawAPI && <CloudSync excalidrawAPI={excalidrawAPI} />}
+              {!isCollabDisabled && collabAPI && (
+                <>
+                  {collabError.message && (
+                    <CollabError collabError={collabError} />
+                  )}
+                  <LiveCollaborationTrigger
+                    isCollaborating={isCollaborating}
+                    onSelect={() =>
+                      setShareDialogState({ isOpen: true, type: "share" })
+                    }
+                    editorInterface={editorInterface}
+                  />
+                </>
+              )}
             </div>
           );
         }}
@@ -992,7 +1000,6 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         {excalidrawAPI && <AIComponents excalidrawAPI={excalidrawAPI} />}
-        {excalidrawAPI && <CloudSync excalidrawAPI={excalidrawAPI} />}
 
         <TTDDialogTrigger />
         {isCollaborating && isOffline && (

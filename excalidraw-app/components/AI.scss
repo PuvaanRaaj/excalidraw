@@ -1,0 +1,72 @@
+.AISettings {
+  position: relative;
+  z-index: 10;
+  color: var(--text-primary-color);
+  font-family: var(--ui-font);
+}
+
+.AISettings__toggle {
+  height: 48px;
+  min-width: 48px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--island-bg-color);
+  color: var(--text-primary-color);
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: var(--shadow-island);
+}
+
+.AISettings__panel {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  display: grid;
+  width: min(300px, calc(100vw - 24px));
+  gap: 8px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--island-bg-color);
+  box-shadow: var(--shadow-island);
+  padding: 10px;
+}
+
+.AISettings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.AISettings__header span:last-child {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.AISettings__label {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.AISettings__input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--input-bg-color);
+  color: var(--text-primary-color);
+  padding: 0 10px;
+}
+
+.AISettings__button {
+  height: 32px;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+  font-weight: 700;
+}

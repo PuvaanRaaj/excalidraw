@@ -566,9 +566,10 @@ export const CloudSync = ({
       <button
         className="CloudSync__toggle"
         type="button"
+        title={activeLabel}
         onClick={() => setIsOpen((value) => !value)}
       >
-        {activeLabel}
+        Cloud
       </button>
       {isOpen && (
         <div className="CloudSync__panel">

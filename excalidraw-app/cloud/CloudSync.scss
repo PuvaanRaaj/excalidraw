@@ -1,17 +1,15 @@
 .CloudSync {
-  position: fixed;
+  position: relative;
   z-index: 10;
-  top: 96px;
-  right: 16px;
-  width: min(328px, calc(100vw - 24px));
-  max-height: calc(100vh - 112px);
+  width: auto;
   color: var(--text-primary-color);
   font-family: var(--ui-font);
 }
 
 .CloudSync__toggle {
-  width: 100%;
-  height: 34px;
+  width: auto;
+  min-width: 72px;
+  height: 48px;
   border: 1px solid var(--default-border-color);
   border-radius: 8px;
   background: var(--island-bg-color);
@@ -26,6 +24,10 @@
 }
 
 .CloudSync__panel {
+  position: absolute;
+  top: 54px;
+  right: 0;
+  width: min(328px, calc(100vw - 24px));
   margin-top: 6px;
   border: 1px solid var(--default-border-color);
   border-radius: 8px;
@@ -290,13 +292,12 @@
 
 @media (max-width: 720px) {
   .CloudSync {
-    top: 72px;
-    right: 8px;
     width: calc(100vw - 16px);
     max-height: calc(100vh - 88px);
   }
 
   .CloudSync__panel {
+    right: 0;
     max-height: calc(100vh - 136px);
   }
 }
