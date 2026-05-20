@@ -574,48 +574,12 @@ export const CloudSync = ({
           {authReady && isSignedIn && (
             <>
               <div className="CloudSync__current">
-                <label className="CloudSync__label" htmlFor="cloud-title">
-                  Canvas name
-                </label>
                 <input
                   id="cloud-title"
-                  className="CloudSync__input"
+                  className="CloudSync__input CloudSync__input--title"
+                  aria-label="Canvas name"
                   value={activeTitle}
                   onChange={(event) => setActiveTitle(event.target.value)}
-                />
-                <div className="CloudSync__metadataGrid">
-                  <div>
-                    <label className="CloudSync__label" htmlFor="cloud-folder">
-                      Folder
-                    </label>
-                    <input
-                      id="cloud-folder"
-                      className="CloudSync__input"
-                      placeholder="No folder"
-                      value={activeFolder}
-                      onChange={(event) => setActiveFolder(event.target.value)}
-                    />
-                  </div>
-                  <label className="CloudSync__checkbox">
-                    <input
-                      type="checkbox"
-                      checked={activeStarred}
-                      onChange={(event) =>
-                        setActiveStarred(event.target.checked)
-                      }
-                    />
-                    Starred
-                  </label>
-                </div>
-                <label className="CloudSync__label" htmlFor="cloud-tags">
-                  Tags
-                </label>
-                <input
-                  id="cloud-tags"
-                  className="CloudSync__input"
-                  placeholder="tag-one, tag-two"
-                  value={activeTags}
-                  onChange={(event) => setActiveTags(event.target.value)}
                 />
               </div>
 
@@ -666,136 +630,178 @@ export const CloudSync = ({
                 </button>
               </div>
 
+              <details className="CloudSync__details">
+                <summary>Canvas details</summary>
+                <div className="CloudSync__metadataGrid">
+                  <div>
+                    <label className="CloudSync__label" htmlFor="cloud-folder">
+                      Folder
+                    </label>
+                    <input
+                      id="cloud-folder"
+                      className="CloudSync__input"
+                      placeholder="No folder"
+                      value={activeFolder}
+                      onChange={(event) => setActiveFolder(event.target.value)}
+                    />
+                  </div>
+                  <label className="CloudSync__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={activeStarred}
+                      onChange={(event) =>
+                        setActiveStarred(event.target.checked)
+                      }
+                    />
+                    Starred
+                  </label>
+                </div>
+                <label className="CloudSync__label" htmlFor="cloud-tags">
+                  Tags
+                </label>
+                <input
+                  id="cloud-tags"
+                  className="CloudSync__input"
+                  placeholder="tag-one, tag-two"
+                  value={activeTags}
+                  onChange={(event) => setActiveTags(event.target.value)}
+                />
+              </details>
+
               {activeDrawingId && (
                 <>
-                  <div className="CloudSync__sectionTitle">Share links</div>
-                  <div className="CloudSync__inlineControls">
-                    <select
-                      className="CloudSync__select"
-                      value={sharePermission}
-                      onChange={(event) =>
-                        setSharePermission(
-                          event.target.value as CloudSharePermission,
-                        )
-                      }
-                    >
-                      <option value="view">View</option>
-                      <option value="edit">Edit</option>
-                    </select>
-                    <button
-                      className="CloudSync__button"
-                      type="button"
-                      disabled={isBusy}
-                      onClick={handleCreateShareLink}
-                    >
-                      Create link
-                    </button>
-                    <button
-                      className="CloudSync__button"
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() =>
-                        refreshShareLinks().catch((error: Error) =>
-                          setError(error.message),
-                        )
-                      }
-                    >
-                      Reload
-                    </button>
-                  </div>
-                  <div className="CloudSync__miniList">
-                    {!shareLinks.length && (
-                      <div className="CloudSync__empty">
-                        No share links for this canvas.
-                      </div>
-                    )}
-                    {shareLinks.map((share, index) => {
-                      const shareId = getShareId(share);
-                      const url = makeShareUrl(shareId);
+                  <details className="CloudSync__details">
+                    <summary>Share links</summary>
+                    <div className="CloudSync__inlineControls">
+                      <select
+                        className="CloudSync__select"
+                        value={sharePermission}
+                        onChange={(event) =>
+                          setSharePermission(
+                            event.target.value as CloudSharePermission,
+                          )
+                        }
+                      >
+                        <option value="view">View</option>
+                        <option value="edit">Edit</option>
+                      </select>
+                      <button
+                        className="CloudSync__button"
+                        type="button"
+                        disabled={isBusy}
+                        onClick={handleCreateShareLink}
+                      >
+                        Create
+                      </button>
+                      <button
+                        className="CloudSync__button"
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() =>
+                          refreshShareLinks().catch((error: Error) =>
+                            setError(error.message),
+                          )
+                        }
+                      >
+                        Reload
+                      </button>
+                    </div>
+                    <div className="CloudSync__miniList">
+                      {!shareLinks.length && (
+                        <div className="CloudSync__empty">No share links.</div>
+                      )}
+                      {shareLinks.map((share, index) => {
+                        const shareId = getShareId(share);
+                        const url = makeShareUrl(shareId);
 
-                      return (
-                        <div
-                          className="CloudSync__miniRow"
-                          key={shareId || index}
-                        >
-                          <div>
-                            <div className="CloudSync__drawingTitle">{url}</div>
-                            <div className="CloudSync__drawingMeta">
-                              {share.permission}
-                            </div>
-                          </div>
-                          <div className="CloudSync__actions">
-                            <button
-                              className="CloudSync__button"
-                              type="button"
-                              disabled={isBusy || !shareId}
-                              onClick={() => handleCopyShareLink(shareId)}
-                            >
-                              Copy
-                            </button>
-                            <button
-                              className="CloudSync__button"
-                              type="button"
-                              disabled={isBusy || !shareId}
-                              onClick={() => handleDeleteShareLink(shareId)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="CloudSync__sectionTitle">Versions</div>
-                  <div className="CloudSync__inlineControls">
-                    <button
-                      className="CloudSync__button"
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() =>
-                        refreshVersions().catch((error: Error) =>
-                          setError(error.message),
-                        )
-                      }
-                    >
-                      Load versions
-                    </button>
-                  </div>
-                  <div className="CloudSync__miniList">
-                    {!versions.length && (
-                      <div className="CloudSync__empty">
-                        No versions loaded for this canvas.
-                      </div>
-                    )}
-                    {versions.map((version, index) => {
-                      const versionId = getVersionId(version);
-
-                      return (
-                        <div
-                          className="CloudSync__miniRow"
-                          key={versionId || index}
-                        >
-                          <div>
-                            <div className="CloudSync__drawingTitle">
-                              {version.title || "Saved version"}
-                            </div>
-                            <div className="CloudSync__drawingMeta">
-                              {new Date(version.created_at).toLocaleString()}
-                            </div>
-                          </div>
-                          <button
-                            className="CloudSync__button"
-                            type="button"
-                            disabled={isBusy || !versionId}
-                            onClick={() => handleRestoreVersion(versionId)}
+                        return (
+                          <div
+                            className="CloudSync__miniRow"
+                            key={shareId || index}
                           >
-                            Restore
-                          </button>
+                            <div>
+                              <div className="CloudSync__drawingTitle">
+                                {url}
+                              </div>
+                              <div className="CloudSync__drawingMeta">
+                                {share.permission}
+                              </div>
+                            </div>
+                            <div className="CloudSync__actions">
+                              <button
+                                className="CloudSync__button"
+                                type="button"
+                                disabled={isBusy || !shareId}
+                                onClick={() => handleCopyShareLink(shareId)}
+                              >
+                                Copy
+                              </button>
+                              <button
+                                className="CloudSync__button"
+                                type="button"
+                                disabled={isBusy || !shareId}
+                                onClick={() => handleDeleteShareLink(shareId)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+
+                  <details className="CloudSync__details">
+                    <summary>Versions</summary>
+                    <div className="CloudSync__inlineControls">
+                      <button
+                        className="CloudSync__button"
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() =>
+                          refreshVersions().catch((error: Error) =>
+                            setError(error.message),
+                          )
+                        }
+                      >
+                        Load versions
+                      </button>
+                    </div>
+                    <div className="CloudSync__miniList">
+                      {!versions.length && (
+                        <div className="CloudSync__empty">
+                          No versions loaded.
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                      {versions.map((version, index) => {
+                        const versionId = getVersionId(version);
+
+                        return (
+                          <div
+                            className="CloudSync__miniRow"
+                            key={versionId || index}
+                          >
+                            <div>
+                              <div className="CloudSync__drawingTitle">
+                                {version.title || "Saved version"}
+                              </div>
+                              <div className="CloudSync__drawingMeta">
+                                {new Date(version.created_at).toLocaleString()}
+                              </div>
+                            </div>
+                            <button
+                              className="CloudSync__button"
+                              type="button"
+                              disabled={isBusy || !versionId}
+                              onClick={() => handleRestoreVersion(versionId)}
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
                 </>
               )}
 

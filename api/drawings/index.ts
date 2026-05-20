@@ -7,7 +7,7 @@ import {
   requireUserId,
   sendError,
   sql,
-} from "../_drawings";
+} from "../_drawings.js";
 
 export default async function handler(req: any, res: any) {
   try {
