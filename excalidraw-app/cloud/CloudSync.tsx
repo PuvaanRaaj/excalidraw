@@ -274,7 +274,11 @@ export const CloudSync = ({
   };
 
   return (
-    <div className="CloudSync">
+    <div
+      className="CloudSync"
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+    >
       <button
         className="CloudSync__toggle"
         type="button"
