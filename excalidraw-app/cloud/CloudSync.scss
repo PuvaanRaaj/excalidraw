@@ -1,16 +1,17 @@
 .CloudSync {
   position: fixed;
   z-index: 10;
-  top: 70px;
-  right: 16px;
-  width: min(420px, calc(100vw - 32px));
+  top: 112px;
+  right: 20px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 128px);
   color: var(--text-primary-color);
   font-family: var(--ui-font);
 }
 
 .CloudSync__toggle {
   width: 100%;
-  height: 40px;
+  height: 36px;
   border: 1px solid var(--default-border-color);
   border-radius: 8px;
   background: var(--island-bg-color);
@@ -26,7 +27,9 @@
   border-radius: 8px;
   background: var(--island-bg-color);
   box-shadow: var(--shadow-island);
-  padding: 14px;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding: 12px;
 }
 
 .CloudSync__header {
@@ -56,6 +59,13 @@
   margin-bottom: 10px;
 }
 
+.CloudSync__metadataGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
 .CloudSync__label,
 .CloudSync__sectionTitle {
   color: var(--text-secondary-color);
@@ -77,6 +87,27 @@
   padding: 0 10px;
 }
 
+.CloudSync__select {
+  min-width: 82px;
+  height: 32px;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--input-bg-color);
+  color: var(--text-primary-color);
+  padding: 0 8px;
+}
+
+.CloudSync__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  color: var(--text-primary-color);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .CloudSync__actions {
   display: flex;
   flex-wrap: wrap;
@@ -94,6 +125,45 @@
   font-weight: 600;
 }
 
+.CloudSync__inlineControls,
+.CloudSync__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.CloudSync__filters .CloudSync__input {
+  flex: 1 1 180px;
+}
+
+.CloudSync__tabs {
+  display: inline-flex;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.CloudSync__tab {
+  height: 34px;
+  border: 0;
+  border-right: 1px solid var(--default-border-color);
+  background: var(--button-gray-1);
+  color: var(--text-primary-color);
+  padding: 0 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.CloudSync__tab:last-child {
+  border-right: 0;
+}
+
+.CloudSync__tab--active {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
 .CloudSync__button:disabled {
   cursor: default;
   opacity: 0.55;
@@ -108,9 +178,17 @@
 .CloudSync__list {
   display: grid;
   gap: 6px;
-  max-height: 300px;
+  max-height: 220px;
   overflow: auto;
   margin-top: 10px;
+}
+
+.CloudSync__miniList {
+  display: grid;
+  gap: 6px;
+  max-height: 112px;
+  overflow: auto;
+  margin-top: 8px;
 }
 
 .CloudSync__empty {
@@ -125,6 +203,16 @@
 .CloudSync__drawing {
   display: grid;
   grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.CloudSync__miniRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   border: 1px solid var(--default-border-color);
@@ -150,6 +238,39 @@
   font-size: 12px;
 }
 
+.CloudSync__drawingTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.CloudSync__drawingTags span {
+  border: 1px solid var(--default-border-color);
+  border-radius: 999px;
+  color: var(--text-secondary-color);
+  font-size: 11px;
+  line-height: 18px;
+  max-width: 120px;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .CloudSync__danger {
   color: var(--color-danger);
+}
+
+@media (max-width: 720px) {
+  .CloudSync {
+    top: 72px;
+    right: 8px;
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 88px);
+  }
+
+  .CloudSync__panel {
+    max-height: calc(100vh - 136px);
+  }
 }

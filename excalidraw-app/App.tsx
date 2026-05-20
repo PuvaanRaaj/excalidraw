@@ -36,6 +36,7 @@ import {
 import polyfill from "@excalidraw/excalidraw/polyfill";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
+import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { t } from "@excalidraw/excalidraw/i18n";
 
 import {
@@ -160,6 +161,10 @@ declare global {
 }
 
 let pwaEvent: BeforeInstallPromptEvent | null = null;
+let activeSharedLink: {
+  shareId: string;
+  permission: "view" | "edit";
+} | null = null;
 
 // Adding a listener outside of the component as it may (?) need to be
 // subscribed early to catch the event.
@@ -218,15 +223,17 @@ const initializeScene = async (opts: {
     /^#json=([a-zA-Z0-9_-]+),([a-zA-Z0-9_-]+)$/,
   );
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
+  const sharedLinkMatch = window.location.pathname.match(
+    /^\/shared\/([a-zA-Z0-9_-]+)$/,
+  );
+
+  if (!sharedLinkMatch) {
+    activeSharedLink = null;
+  }
 
   const localDataState = importFromLocalStorage();
 
-  let scene: Omit<
-    RestoredDataState,
-    // we're not storing files in the scene database/localStorage, and instead
-    // fetch them async from a different store
-    "files"
-  > & {
+  let scene: Partial<RestoredDataState> & {
     scrollToContent?: boolean;
   } = {
     elements: restoreElements(localDataState?.elements, null, {
@@ -237,11 +244,16 @@ const initializeScene = async (opts: {
   };
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
-  const isExternalScene = !!(id || jsonBackendMatch || roomLinkData);
+  const isExternalScene = !!(
+    id ||
+    jsonBackendMatch ||
+    roomLinkData ||
+    sharedLinkMatch
+  );
   if (isExternalScene) {
     if (
       // don't prompt if scene is empty
-      !scene.elements.length ||
+      !scene.elements?.length ||
       // don't prompt for collab scenes because we don't override local storage
       roomLinkData ||
       // otherwise, prompt whether user wants to override current scene
@@ -268,9 +280,34 @@ const initializeScene = async (opts: {
             localDataState?.appState,
           ),
         };
+      } else if (sharedLinkMatch) {
+        const response = await fetch(`/api/shared/${sharedLinkMatch[1]}`);
+
+        if (!response.ok) {
+          throw new Error("Unable to load shared canvas");
+        }
+
+        const { drawing, share } = await response.json();
+
+        activeSharedLink = {
+          shareId: sharedLinkMatch[1],
+          permission: share?.permission === "edit" ? "edit" : "view",
+        };
+
+        scene = {
+          elements: restoreElements(drawing.elements, null, {
+            repairBindings: true,
+            deleteInvisibleElements: true,
+          }),
+          appState: restoreAppState(
+            drawing.app_state,
+            localDataState?.appState,
+          ),
+          files: drawing.files || {},
+        };
       }
       scene.scrollToContent = true;
-      if (!roomLinkData) {
+      if (!roomLinkData && !sharedLinkMatch) {
         window.history.replaceState({}, APP_NAME, window.location.origin);
       }
     } else {
@@ -298,7 +335,7 @@ const initializeScene = async (opts: {
       const request = await fetch(window.decodeURIComponent(url));
       const data = await loadFromBlob(await request.blob(), null, null);
       if (
-        !scene.elements.length ||
+        !scene.elements?.length ||
         (await openConfirmModal(shareableLinkConfirmDialog))
       ) {
         return { scene: data, isExternalScene };
@@ -409,6 +446,7 @@ const ExcalidrawWrapper = () => {
   });
 
   const [, forceRefresh] = useState(false);
+  const sharedSaveTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isDevEnv()) {
@@ -704,6 +742,38 @@ const ExcalidrawWrapper = () => {
           }
         }
       });
+    }
+
+    if (activeSharedLink?.permission === "edit") {
+      if (sharedSaveTimeoutRef.current) {
+        window.clearTimeout(sharedSaveTimeoutRef.current);
+      }
+
+      sharedSaveTimeoutRef.current = window.setTimeout(() => {
+        const sharedLink = activeSharedLink;
+
+        if (!sharedLink || sharedLink.permission !== "edit") {
+          return;
+        }
+
+        const serialized = serializeAsJSON(elements, appState, files, "local");
+        const data = JSON.parse(serialized);
+
+        fetch(`/api/shared/${sharedLink.shareId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: excalidrawAPI?.getName() || "Untitled",
+            elements: data.elements,
+            appState: data.appState,
+            files: data.files || {},
+          }),
+        }).catch((error) => {
+          console.error("Shared canvas save failed", error);
+        });
+      }, 1500);
     }
 
     // Render the debug scene if the debug canvas is available

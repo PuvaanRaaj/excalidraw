@@ -1,7 +1,9 @@
 import {
   ensureDrawingsSchema,
   requireJsonObject,
+  requireOptionalString,
   requireString,
+  requireStringArray,
   requireUserId,
   sendError,
   sql,
@@ -13,10 +15,23 @@ export default async function handler(req: any, res: any) {
     await ensureDrawingsSchema();
 
     if (req.method === "GET") {
+      const showTrash = req.query?.trash === "1" || req.query?.trash === "true";
       const drawings = await sql`
-        select id, title, created_at, updated_at
+        select
+          id,
+          title,
+          folder,
+          tags,
+          is_starred,
+          deleted_at,
+          created_at,
+          updated_at
         from drawings
         where owner_id = ${ownerId}
+          and (
+            (${showTrash} and deleted_at is not null)
+            or (not ${showTrash} and deleted_at is null)
+          )
         order by updated_at desc
       `;
 
@@ -28,17 +43,47 @@ export default async function handler(req: any, res: any) {
       const elements = requireJsonObject(req.body?.elements, []);
       const appState = requireJsonObject(req.body?.appState, {});
       const files = requireJsonObject(req.body?.files, {});
+      const folder = requireOptionalString(req.body?.folder, "folder") ?? null;
+      const tags =
+        req.body?.tags === undefined
+          ? []
+          : requireStringArray(req.body.tags, "tags");
+      const isStarred =
+        typeof req.body?.isStarred === "boolean" ? req.body.isStarred : false;
 
       const [drawing] = await sql`
-        insert into drawings (owner_id, title, elements, app_state, files)
+        insert into drawings (
+          owner_id,
+          title,
+          elements,
+          app_state,
+          files,
+          folder,
+          tags,
+          is_starred
+        )
         values (
           ${ownerId},
           ${title},
           ${JSON.stringify(elements)}::jsonb,
           ${JSON.stringify(appState)}::jsonb,
-          ${JSON.stringify(files)}::jsonb
+          ${JSON.stringify(files)}::jsonb,
+          ${folder},
+          ${tags}::text[],
+          ${isStarred}
         )
-        returning id, title, elements, app_state, files, created_at, updated_at
+        returning
+          id,
+          title,
+          elements,
+          app_state,
+          files,
+          folder,
+          tags,
+          is_starred,
+          deleted_at,
+          created_at,
+          updated_at
       `;
 
       return res.status(201).json({ drawing });

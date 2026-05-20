@@ -49,6 +49,12 @@
       ]
     }
   ],
+  "rewrites": [
+    {
+      "source": "/shared/:path*",
+      "destination": "/"
+    }
+  ],
   "redirects": [
     {
       "source": "/webex/:match*",
