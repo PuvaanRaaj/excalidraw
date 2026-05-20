@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
+import { cloudAuth } from "../cloud/auth";
 import { TTDIndexedDBAdapter } from "../data/TTDStorage";
 
 import "./AI.scss";
@@ -22,9 +23,8 @@ type AISettings = {
   provider: AIProvider;
   model: string;
   apiKey: string;
+  hasApiKey?: boolean;
 };
-
-const AI_SETTINGS_KEY = "excalidraw-ai-settings-v1";
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: "gpt-4.1-mini",
@@ -42,54 +42,153 @@ const getDefaultAISettings = (): AISettings => ({
   provider: "openai",
   model: DEFAULT_MODELS.openai,
   apiKey: "",
+  hasApiKey: false,
 });
 
-const readAISettings = (): AISettings => {
-  try {
-    const raw = window.localStorage.getItem(AI_SETTINGS_KEY);
-    if (!raw) {
-      return getDefaultAISettings();
-    }
-
-    return {
-      ...getDefaultAISettings(),
-      ...JSON.parse(raw),
-    };
-  } catch {
-    return getDefaultAISettings();
+const getAIAuthHeaders = async () => {
+  if (!cloudAuth) {
+    throw new Error("Sign in is required before using AI.");
   }
-};
 
-const writeAISettings = (settings: AISettings) => {
-  window.localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
-};
+  const token = await cloudAuth.getJWTToken();
 
-const getAIRequestHeaders = () => {
-  const settings = readAISettings();
-
-  if (!settings.apiKey.trim()) {
-    throw new Error("Add an AI API key from the AI button before using AI.");
+  if (!token) {
+    throw new Error("Sign in before using AI.");
   }
 
   return {
-    "X-AI-Provider": settings.provider,
-    "X-AI-Model": settings.model || DEFAULT_MODELS[settings.provider],
-    "X-AI-API-Key": settings.apiKey.trim(),
+    Authorization: `Bearer ${token}`,
   };
 };
 
-export const AISettingsButton = () => {
+const aiFetch = async <T,>(path: string, init: RequestInit = {}) => {
+  const authHeaders = await getAIAuthHeaders();
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      ...authHeaders,
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(async () => {
+      const text = await response.text().catch(() => "");
+      return text ? { error: text } : null;
+    });
+    throw new Error(body?.error || `AI request failed (${response.status})`);
+  }
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  return response.json() as Promise<T>;
+};
+
+const loadAISettings = async () => {
+  const data = await aiFetch<{
+    settings: {
+      provider: AIProvider;
+      model: string;
+      hasApiKey: boolean;
+    };
+  }>("/api/ai/settings");
+
+  return {
+    ...getDefaultAISettings(),
+    ...data.settings,
+    apiKey: "",
+  };
+};
+
+const saveAISettings = async (settings: AISettings) => {
+  const data = await aiFetch<{
+    settings: {
+      provider: AIProvider;
+      model: string;
+      hasApiKey: boolean;
+    };
+  }>("/api/ai/settings", {
+    method: "PUT",
+    body: JSON.stringify({
+      provider: settings.provider,
+      model: settings.model || DEFAULT_MODELS[settings.provider],
+      apiKey: settings.apiKey,
+    }),
+  });
+
+  return {
+    ...getDefaultAISettings(),
+    ...data.settings,
+    apiKey: "",
+  };
+};
+
+export const AISettingsButton = ({
+  excalidrawAPI,
+}: {
+  excalidrawAPI: ExcalidrawImperativeAPI;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<AISettings>(getDefaultAISettings);
-  const [saved, setSaved] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setSettings(readAISettings());
-  }, []);
+    localStorage.removeItem("excalidraw-ai-settings-v1");
+
+    if (isOpen) {
+      loadAISettings()
+        .then((nextSettings) => {
+          setSettings(nextSettings);
+          setError("");
+        })
+        .catch((error: Error) => setError(error.message));
+    }
+  }, [isOpen]);
+
+  const openTextToDiagram = (tab: "text-to-diagram" | "mermaid") => {
+    excalidrawAPI.updateScene({
+      appState: {
+        openDialog: { name: "ttd", tab },
+      } as any,
+    });
+    setIsOpen(false);
+  };
+
+  const handleSave = async () => {
+    setError("");
+    setMessage("Saving...");
+
+    try {
+      const nextSettings = await saveAISettings(settings);
+      setSettings(nextSettings);
+      setMessage("Saved");
+    } catch (error: any) {
+      setError(error.message || "AI settings save failed");
+      setMessage("");
+    }
+  };
+
+  const handleClear = async () => {
+    setError("");
+    setMessage("Removing...");
+
+    try {
+      await aiFetch<null>("/api/ai/settings", { method: "DELETE" });
+      setSettings(getDefaultAISettings());
+      setMessage("Removed");
+    } catch (error: any) {
+      setError(error.message || "AI settings remove failed");
+      setMessage("");
+    }
+  };
 
   const updateSettings = (nextSettings: AISettings) => {
     setSettings(nextSettings);
-    setSaved(false);
+    setMessage("");
   };
 
   return (
@@ -108,9 +207,26 @@ export const AISettingsButton = () => {
       {isOpen && (
         <div className="AISettings__panel">
           <div className="AISettings__header">
-            <span>AI settings</span>
-            {saved && <span>Saved</span>}
+            <span>AI</span>
+            {message && <span>{message}</span>}
           </div>
+          <div className="AISettings__actions">
+            <button
+              className="AISettings__button"
+              type="button"
+              onClick={() => openTextToDiagram("text-to-diagram")}
+            >
+              Text to diagram
+            </button>
+            <button
+              className="AISettings__button"
+              type="button"
+              onClick={() => openTextToDiagram("mermaid")}
+            >
+              Mermaid
+            </button>
+          </div>
+          <div className="AISettings__subheader">Provider settings</div>
           <label className="AISettings__label" htmlFor="ai-provider">
             Provider
           </label>
@@ -157,16 +273,28 @@ export const AISettingsButton = () => {
               updateSettings({ ...settings, apiKey: event.target.value })
             }
           />
-          <button
-            className="AISettings__button"
-            type="button"
-            onClick={() => {
-              writeAISettings(settings);
-              setSaved(true);
-            }}
-          >
-            Save
-          </button>
+          {settings.hasApiKey && !settings.apiKey && (
+            <div className="AISettings__hint">
+              An encrypted API key is saved in your account.
+            </div>
+          )}
+          {error && <div className="AISettings__error">{error}</div>}
+          <div className="AISettings__actions">
+            <button
+              className="AISettings__button"
+              type="button"
+              onClick={handleSave}
+            >
+              Save
+            </button>
+            <button
+              className="AISettings__button AISettings__button--secondary"
+              type="button"
+              onClick={handleClear}
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -201,15 +329,13 @@ export const AIComponents = ({
           const textFromFrameChildren = getTextFromElements(children);
 
           const response = await fetch(
-            `${
-              import.meta.env.VITE_APP_AI_BACKEND
-            }/v1/ai/diagram-to-code/generate`,
+            "/api/ai/diagram-to-code/generate",
             {
               method: "POST",
               headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
-                ...getAIRequestHeaders(),
+                ...(await getAIAuthHeaders()),
               },
               body: JSON.stringify({
                 texts: textFromFrameChildren,
@@ -265,14 +391,12 @@ export const AIComponents = ({
           const { onChunk, onStreamCreated, signal, messages } = props;
 
           const result = await TTDStreamFetch({
-            url: `${
-              import.meta.env.VITE_APP_AI_BACKEND
-            }/v1/ai/text-to-diagram/chat-streaming`,
+            url: "/api/ai/text-to-diagram/chat-streaming",
             messages,
             onChunk,
             onStreamCreated,
             extractRateLimits: true,
-            headers: getAIRequestHeaders(),
+            headers: await getAIAuthHeaders(),
             signal,
           });
 

@@ -45,6 +45,15 @@
   font-weight: 500;
 }
 
+.AISettings__subheader {
+  margin-top: 4px;
+  border-top: 1px solid var(--default-border-color);
+  padding-top: 10px;
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .AISettings__label {
   color: var(--text-secondary-color);
   font-size: 12px;
@@ -61,6 +70,12 @@
   padding: 0 10px;
 }
 
+.AISettings__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .AISettings__button {
   height: 32px;
   border: 1px solid var(--color-primary);
@@ -69,4 +84,24 @@
   color: var(--color-primary-contrast);
   cursor: pointer;
   font-weight: 700;
+}
+
+.AISettings__button--secondary {
+  border-color: var(--default-border-color);
+  background: var(--button-gray-1);
+  color: var(--text-primary-color);
+}
+
+.AISettings__hint,
+.AISettings__error {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.AISettings__hint {
+  color: var(--text-secondary-color);
+}
+
+.AISettings__error {
+  color: var(--color-danger);
 }

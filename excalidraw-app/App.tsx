@@ -956,7 +956,9 @@ const ExcalidrawWrapper = () => {
 
           return (
             <div className="excalidraw-ui-top-right">
-              <AISettingsButton />
+              {excalidrawAPI && (
+                <AISettingsButton excalidrawAPI={excalidrawAPI} />
+              )}
               {excalidrawAPI && <CloudSync excalidrawAPI={excalidrawAPI} />}
               {!isCollabDisabled && collabAPI && (
                 <>
