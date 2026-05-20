@@ -98,6 +98,17 @@ const normalizeDrawing = (drawing: CloudDrawing) => ({
   files: drawing.files as BinaryFiles,
 });
 
+const mergeDrawingSummary = (
+  drawings: CloudDrawingSummary[],
+  drawing: CloudDrawingSummary,
+) => {
+  const next = drawings.filter((item) => item.id !== drawing.id);
+  return [drawing, ...next].sort(
+    (a, b) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
+};
+
 export const CloudSync = ({
   excalidrawAPI,
 }: {
@@ -189,9 +200,16 @@ export const CloudSync = ({
     setIsSignedIn(Boolean((response as any).data?.user));
   };
 
-  const refreshDrawings = async () => {
-    const nextDrawings = await listDrawings();
-    setDrawings(nextDrawings);
+  const refreshDrawings = async (options: { trash?: boolean } = {}) => {
+    const nextDrawings = await listDrawings(options);
+    setDrawings((current) => {
+      const replacingTrash = Boolean(options.trash);
+      const keep = current.filter((drawing) =>
+        replacingTrash ? !isDrawingTrashed(drawing) : isDrawingTrashed(drawing),
+      );
+
+      return [...nextDrawings, ...keep];
+    });
   };
 
   const refreshShareLinks = async (id = activeDrawingId) => {
@@ -223,6 +241,14 @@ export const CloudSync = ({
   }, [isSignedIn]);
 
   useEffect(() => {
+    if (isSignedIn && view === "trash") {
+      refreshDrawings({ trash: true }).catch((error: Error) =>
+        setError(error.message),
+      );
+    }
+  }, [isSignedIn, view]);
+
+  useEffect(() => {
     if (!activeDrawingId || !isSignedIn) {
       return;
     }
@@ -247,8 +273,21 @@ export const CloudSync = ({
           toCloudPayload(excalidrawAPI, activeTitle, activeMetadata),
         );
         lastSavedVersionRef.current = version;
+        setDrawings((current) =>
+          current.map((drawing) =>
+            drawing.id === activeDrawingId
+              ? {
+                  ...drawing,
+                  title: activeTitle,
+                  folder: activeMetadata.folder || null,
+                  tags: normalizeTags(activeMetadata.tags),
+                  is_starred: activeMetadata.starred,
+                  updated_at: new Date().toISOString(),
+                }
+              : drawing,
+          ),
+        );
         setMessage("Saved");
-        await refreshDrawings();
       } catch (error: any) {
         setError(error.message || "Cloud save failed");
       }
@@ -327,11 +366,9 @@ export const CloudSync = ({
       lastSavedVersionRef.current = getSceneVersion(
         excalidrawAPI.getSceneElementsIncludingDeleted(),
       );
-      await refreshDrawings();
-      await Promise.all([
-        refreshShareLinks(drawing.id).catch(() => setShareLinks([])),
-        refreshVersions(drawing.id).catch(() => setVersions([])),
-      ]);
+      setDrawings((current) => mergeDrawingSummary(current, drawing));
+      setShareLinks([]);
+      setVersions([]);
       setMessage("Saved");
     } catch (error: any) {
       setError(error.message || "Save failed");
@@ -373,10 +410,8 @@ export const CloudSync = ({
       setActiveTags(formatTags(drawing.tags));
       setActiveStarred(isDrawingStarred(drawing));
       lastSavedVersionRef.current = getSceneVersion(data.elements);
-      await Promise.all([
-        refreshShareLinks(drawing.id).catch(() => setShareLinks([])),
-        refreshVersions(drawing.id).catch(() => setVersions([])),
-      ]);
+      setShareLinks([]);
+      setVersions([]);
       setMessage("Opened");
     } catch (error: any) {
       setError(error.message || "Open failed");
@@ -404,7 +439,13 @@ export const CloudSync = ({
         setVersions([]);
         lastSavedVersionRef.current = null;
       }
-      await refreshDrawings();
+      setDrawings((current) =>
+        current.map((drawing) =>
+          drawing.id === id
+            ? { ...drawing, deleted_at: new Date().toISOString() }
+            : drawing,
+        ),
+      );
       setMessage("Moved to trash");
     } catch (error: any) {
       setError(error.message || "Delete failed");
@@ -419,8 +460,19 @@ export const CloudSync = ({
     setMessage("Restoring...");
 
     try {
-      await restoreDrawing(id);
-      await refreshDrawings();
+      const restored = await restoreDrawing(id);
+      setDrawings((current) =>
+        current.map((drawing) =>
+          drawing.id === id
+            ? {
+                ...drawing,
+                ...(restored || {}),
+                deleted_at: null,
+                trashed_at: null,
+              }
+            : drawing,
+        ),
+      );
       setMessage("Restored");
     } catch (error: any) {
       setError(error.message || "Restore failed");
@@ -613,8 +665,8 @@ export const CloudSync = ({
                   type="button"
                   disabled={isBusy}
                   onClick={() =>
-                    refreshDrawings().catch((error: Error) =>
-                      setError(error.message),
+                    refreshDrawings({ trash: view === "trash" }).catch(
+                      (error: Error) => setError(error.message),
                     )
                   }
                 >
@@ -631,7 +683,7 @@ export const CloudSync = ({
               </div>
 
               <details className="CloudSync__details">
-                <summary>Canvas details</summary>
+                <summary>More</summary>
                 <div className="CloudSync__metadataGrid">
                   <div>
                     <label className="CloudSync__label" htmlFor="cloud-folder">
@@ -666,12 +718,10 @@ export const CloudSync = ({
                   value={activeTags}
                   onChange={(event) => setActiveTags(event.target.value)}
                 />
-              </details>
 
-              {activeDrawingId && (
-                <>
-                  <details className="CloudSync__details">
-                    <summary>Share links</summary>
+                {activeDrawingId && (
+                  <>
+                    <div className="CloudSync__sectionTitle">Share links</div>
                     <div className="CloudSync__inlineControls">
                       <select
                         className="CloudSync__select"
@@ -749,10 +799,8 @@ export const CloudSync = ({
                         );
                       })}
                     </div>
-                  </details>
 
-                  <details className="CloudSync__details">
-                    <summary>Versions</summary>
+                    <div className="CloudSync__sectionTitle">Versions</div>
                     <div className="CloudSync__inlineControls">
                       <button
                         className="CloudSync__button"
@@ -801,9 +849,9 @@ export const CloudSync = ({
                         );
                       })}
                     </div>
-                  </details>
-                </>
-              )}
+                  </>
+                )}
+              </details>
 
               <div className="CloudSync__sectionTitle">Saved canvases</div>
               <div className="CloudSync__filters">

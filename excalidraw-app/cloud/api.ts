@@ -97,12 +97,11 @@ const cloudFetch = async <T>(path: string, init: RequestInit = {}) => {
   return response.json() as Promise<T>;
 };
 
-export const listDrawings = async () => {
-  const [activeData, trashData] = await Promise.all([
-    cloudFetch<{ drawings: CloudDrawingSummary[] }>("/api/drawings"),
-    cloudFetch<{ drawings: CloudDrawingSummary[] }>("/api/drawings?trash=1"),
-  ]);
-  return [...activeData.drawings, ...trashData.drawings];
+export const listDrawings = async (options: { trash?: boolean } = {}) => {
+  const data = await cloudFetch<{ drawings: CloudDrawingSummary[] }>(
+    options.trash ? "/api/drawings?trash=1" : "/api/drawings",
+  );
+  return data.drawings;
 };
 
 export const createDrawing = async (payload: CloudDrawingPayload) => {

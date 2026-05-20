@@ -57,10 +57,12 @@ export default async function handler(req: any, res: any) {
       const isStarred =
         typeof req.body?.isStarred === "boolean" ? req.body.isStarred : false;
 
-      const exists = await insertDrawingVersion(id, ownerId);
+      if (req.body?.snapshot === true || req.query?.snapshot === "1") {
+        const exists = await insertDrawingVersion(id, ownerId);
 
-      if (!exists) {
-        return res.status(404).json({ error: "Drawing not found" });
+        if (!exists) {
+          return res.status(404).json({ error: "Drawing not found" });
+        }
       }
 
       const [drawing] = await sql`
