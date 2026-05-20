@@ -80,6 +80,8 @@ export const sendError = (res: any, error: unknown) => {
       ? (error as any).statusCode
       : 500;
 
+  console.error("[cloud-drawings]", error);
+
   res.status(statusCode).json({
     error: error instanceof Error ? error.message : "Unexpected error",
   });

@@ -23,6 +23,14 @@ import "./CloudSync.scss";
 
 const AUTOSAVE_INTERVAL_MS = 2000;
 
+const makeUntitledTitle = () =>
+  `Untitled ${new Date().toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+
 const toCloudPayload = (excalidrawAPI: ExcalidrawImperativeAPI, title: string) => {
   const serialized = serializeAsJSON(
     excalidrawAPI.getSceneElementsIncludingDeleted(),
@@ -57,7 +65,7 @@ export const CloudSync = ({
   const [password, setPassword] = useState("");
   const [drawings, setDrawings] = useState<CloudDrawingSummary[]>([]);
   const [activeDrawingId, setActiveDrawingId] = useState<string | null>(null);
-  const [activeTitle, setActiveTitle] = useState("Untitled");
+  const [activeTitle, setActiveTitle] = useState(makeUntitledTitle);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isBusy, setIsBusy] = useState(false);
@@ -75,7 +83,7 @@ export const CloudSync = ({
     if (activeDrawingId) {
       return activeTitle;
     }
-    return "Cloud drawings";
+    return "Unsaved canvas";
   }, [activeDrawingId, activeTitle, isSignedIn]);
 
   const refreshSession = async () => {
@@ -186,26 +194,40 @@ export const CloudSync = ({
     setMessage("Signed out");
   };
 
-  const handleCreate = async () => {
+  const saveDrawing = async (forceNew = false) => {
     setIsBusy(true);
     setError("");
-    setMessage("Creating...");
+    setMessage(forceNew || !activeDrawingId ? "Creating..." : "Saving...");
 
     try {
-      const title = excalidrawAPI.getName() || "Untitled";
-      const drawing = await createDrawing(toCloudPayload(excalidrawAPI, title));
+      const title = activeTitle.trim() || makeUntitledTitle();
+      const payload = toCloudPayload(excalidrawAPI, title);
+      const drawing =
+        activeDrawingId && !forceNew
+          ? await updateDrawing(activeDrawingId, payload)
+          : await createDrawing(payload);
+
       setActiveDrawingId(drawing.id);
       setActiveTitle(drawing.title);
       lastSavedVersionRef.current = getSceneVersion(
         excalidrawAPI.getSceneElementsIncludingDeleted(),
       );
       await refreshDrawings();
-      setMessage("Created");
+      setMessage("Saved");
     } catch (error: any) {
-      setError(error.message || "Create failed");
+      setError(error.message || "Save failed");
     } finally {
       setIsBusy(false);
     }
+  };
+
+  const handleNewCanvas = () => {
+    excalidrawAPI.resetScene({ resetLoadingState: true });
+    setActiveDrawingId(null);
+    setActiveTitle(makeUntitledTitle());
+    lastSavedVersionRef.current = getSceneVersion([]);
+    setError("");
+    setMessage("New canvas");
   };
 
   const handleOpen = async (id: string) => {
@@ -315,14 +337,42 @@ export const CloudSync = ({
 
           {authReady && isSignedIn && (
             <>
+              <div className="CloudSync__current">
+                <label className="CloudSync__label" htmlFor="cloud-title">
+                  Canvas name
+                </label>
+                <input
+                  id="cloud-title"
+                  className="CloudSync__input"
+                  value={activeTitle}
+                  onChange={(event) => setActiveTitle(event.target.value)}
+                />
+              </div>
+
               <div className="CloudSync__actions">
                 <button
                   className="CloudSync__button CloudSync__button--primary"
                   type="button"
                   disabled={isBusy}
-                  onClick={handleCreate}
+                  onClick={() => saveDrawing(false)}
                 >
-                  Save current
+                  {activeDrawingId ? "Save" : "Save new"}
+                </button>
+                <button
+                  className="CloudSync__button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => saveDrawing(true)}
+                >
+                  Save as new
+                </button>
+                <button
+                  className="CloudSync__button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={handleNewCanvas}
+                >
+                  New canvas
                 </button>
                 <button
                   className="CloudSync__button"
@@ -346,9 +396,22 @@ export const CloudSync = ({
                 </button>
               </div>
 
+              <div className="CloudSync__sectionTitle">Saved canvases</div>
               <div className="CloudSync__list">
+                {!drawings.length && (
+                  <div className="CloudSync__empty">
+                    Save this canvas to make it available in every browser.
+                  </div>
+                )}
                 {drawings.map((drawing) => (
-                  <div className="CloudSync__drawing" key={drawing.id}>
+                  <div
+                    className={`CloudSync__drawing ${
+                      drawing.id === activeDrawingId
+                        ? "CloudSync__drawing--active"
+                        : ""
+                    }`}
+                    key={drawing.id}
+                  >
                     <div>
                       <div className="CloudSync__drawingTitle">
                         {drawing.title}

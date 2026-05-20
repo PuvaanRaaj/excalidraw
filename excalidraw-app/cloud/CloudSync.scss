@@ -1,21 +1,23 @@
 .CloudSync {
   position: fixed;
   z-index: 10;
-  top: 72px;
+  top: 70px;
   right: 16px;
-  width: min(360px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   color: var(--text-primary-color);
   font-family: var(--ui-font);
 }
 
 .CloudSync__toggle {
   width: 100%;
-  height: 36px;
+  height: 40px;
   border: 1px solid var(--default-border-color);
   border-radius: 8px;
   background: var(--island-bg-color);
   color: var(--text-primary-color);
   cursor: pointer;
+  font-weight: 600;
+  box-shadow: var(--shadow-island);
 }
 
 .CloudSync__panel {
@@ -24,7 +26,7 @@
   border-radius: 8px;
   background: var(--island-bg-color);
   box-shadow: var(--shadow-island);
-  padding: 12px;
+  padding: 14px;
 }
 
 .CloudSync__header {
@@ -40,11 +42,29 @@
   color: var(--text-secondary-color);
   font-size: 12px;
   font-weight: 400;
+  white-space: nowrap;
 }
 
 .CloudSync__form {
   display: grid;
   gap: 8px;
+}
+
+.CloudSync__current {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.CloudSync__label,
+.CloudSync__sectionTitle {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.CloudSync__sectionTitle {
+  margin-top: 12px;
 }
 
 .CloudSync__input {
@@ -59,6 +79,7 @@
 
 .CloudSync__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -70,6 +91,7 @@
   color: var(--text-primary-color);
   padding: 0 10px;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .CloudSync__button:disabled {
@@ -86,9 +108,18 @@
 .CloudSync__list {
   display: grid;
   gap: 6px;
-  max-height: 260px;
+  max-height: 300px;
   overflow: auto;
   margin-top: 10px;
+}
+
+.CloudSync__empty {
+  border: 1px dashed var(--default-border-color);
+  border-radius: 8px;
+  color: var(--text-secondary-color);
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
 }
 
 .CloudSync__drawing {
@@ -99,6 +130,11 @@
   border: 1px solid var(--default-border-color);
   border-radius: 8px;
   padding: 8px;
+}
+
+.CloudSync__drawing--active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .CloudSync__drawingTitle {

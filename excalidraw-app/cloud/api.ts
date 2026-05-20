@@ -41,8 +41,15 @@ const cloudFetch = async <T>(path: string, init: RequestInit = {}) => {
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.error || `Request failed (${response.status})`);
+    const body = await response.json().catch(async () => {
+      const text = await response.text().catch(() => "");
+      return text ? { error: text } : null;
+    });
+    const detail = body?.error
+      ? `: ${String(body.error).slice(0, 180)}`
+      : "";
+
+    throw new Error(`Cloud request failed (${response.status})${detail}`);
   }
 
   if (response.status === 204) {
