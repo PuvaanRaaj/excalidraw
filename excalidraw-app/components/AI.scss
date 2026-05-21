@@ -60,6 +60,40 @@
   font-weight: 600;
 }
 
+.AISettings__connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 45%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-success), transparent 88%);
+  color: var(--text-primary-color);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.AISettings__connected span::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  vertical-align: 1px;
+}
+
+.AISettings__connected button {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
 .AISettings__input {
   min-width: 0;
   height: 34px;

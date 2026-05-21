@@ -9,6 +9,7 @@ import type {
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { cloudAuth } from "./auth";
+import { notifyCloudAuthChanged } from "./AuthGate";
 import {
   createDrawing,
   createShareLink,
@@ -34,6 +35,7 @@ import type {
 import "./CloudSync.scss";
 
 const AUTOSAVE_INTERVAL_MS = 2000;
+const ACTIVE_CLOUD_DRAWING_KEY = "excalidraw-active-cloud-drawing-id";
 
 const makeUntitledTitle = () =>
   `Untitled ${new Date().toLocaleDateString(undefined, {
@@ -50,6 +52,17 @@ const normalizeTags = (tags: string) =>
     .filter(Boolean);
 
 const formatTags = (tags?: string[] | null) => (tags || []).join(", ");
+
+const rememberActiveCloudDrawing = (id: string | null) => {
+  if (id) {
+    localStorage.setItem(ACTIVE_CLOUD_DRAWING_KEY, id);
+  } else {
+    localStorage.removeItem(ACTIVE_CLOUD_DRAWING_KEY);
+  }
+};
+
+const readRememberedCloudDrawing = () =>
+  localStorage.getItem(ACTIVE_CLOUD_DRAWING_KEY);
 
 const isDrawingStarred = (drawing: CloudDrawingSummary | CloudDrawing) =>
   Boolean(drawing.starred ?? drawing.is_starred);
@@ -137,6 +150,7 @@ export const CloudSync = ({
 
   const lastSavedVersionRef = useRef<number | null>(null);
   const lastSaveStartedAtRef = useRef(0);
+  const restoredRememberedDrawingRef = useRef(false);
 
   const authReady = Boolean(cloudAuth);
   const activeMetadata = useMemo(
@@ -323,6 +337,7 @@ export const CloudSync = ({
 
       await refreshSession();
       await refreshDrawings();
+      notifyCloudAuthChanged();
       setMessage("Signed in");
     } catch (error: any) {
       setError(error.message || "Authentication failed");
@@ -337,6 +352,8 @@ export const CloudSync = ({
     }
 
     await cloudAuth.adapter.signOut();
+    notifyCloudAuthChanged();
+    rememberActiveCloudDrawing(null);
     setIsSignedIn(false);
     setDrawings([]);
     setActiveDrawingId(null);
@@ -359,6 +376,7 @@ export const CloudSync = ({
           : await createDrawing(payload);
 
       setActiveDrawingId(drawing.id);
+      rememberActiveCloudDrawing(drawing.id);
       setActiveTitle(drawing.title);
       setActiveFolder(drawing.folder || payload.folder || "");
       setActiveTags(formatTags(drawing.tags || payload.tags));
@@ -379,6 +397,7 @@ export const CloudSync = ({
 
   const handleNewCanvas = () => {
     excalidrawAPI.resetScene({ resetLoadingState: true });
+    rememberActiveCloudDrawing(null);
     setActiveDrawingId(null);
     setActiveTitle(makeUntitledTitle());
     setActiveFolder("");
@@ -405,6 +424,7 @@ export const CloudSync = ({
         appState: data.appState as any,
       });
       setActiveDrawingId(drawing.id);
+      rememberActiveCloudDrawing(drawing.id);
       setActiveTitle(drawing.title);
       setActiveFolder(drawing.folder || "");
       setActiveTags(formatTags(drawing.tags));
@@ -434,6 +454,7 @@ export const CloudSync = ({
     try {
       await deleteDrawing(id);
       if (activeDrawingId === id) {
+        rememberActiveCloudDrawing(null);
         setActiveDrawingId(null);
         setShareLinks([]);
         setVersions([]);
@@ -453,6 +474,27 @@ export const CloudSync = ({
       setIsBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      !isSignedIn ||
+      activeDrawingId ||
+      restoredRememberedDrawingRef.current
+    ) {
+      return;
+    }
+
+    const rememberedDrawingId = readRememberedCloudDrawing();
+
+    if (!rememberedDrawingId) {
+      return;
+    }
+
+    restoredRememberedDrawingRef.current = true;
+    handleOpen(rememberedDrawingId).catch(() => {
+      rememberActiveCloudDrawing(null);
+    });
+  }, [activeDrawingId, isSignedIn]);
 
   const handleRestoreDrawing = async (id: string) => {
     setIsBusy(true);

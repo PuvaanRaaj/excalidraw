@@ -10,7 +10,7 @@ export type AIProvider = "openai" | "anthropic" | "deepseek";
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: "gpt-4.1-mini",
   anthropic: "claude-3-5-sonnet-latest",
-  deepseek: "deepseek-chat",
+  deepseek: "deepseek-v4-flash",
 };
 
 const requireProvider = (value: unknown): AIProvider => {

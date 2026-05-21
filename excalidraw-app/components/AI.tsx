@@ -29,7 +29,17 @@ type AISettings = {
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: "gpt-4.1-mini",
   anthropic: "claude-3-5-sonnet-latest",
-  deepseek: "deepseek-chat",
+  deepseek: "deepseek-v4-flash",
+};
+
+const MODEL_OPTIONS: Record<AIProvider, string[]> = {
+  openai: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o"],
+  anthropic: [
+    "claude-3-5-sonnet-latest",
+    "claude-3-5-haiku-latest",
+    "claude-3-opus-latest",
+  ],
+  deepseek: ["deepseek-v4-flash", "deepseek-v4-pro"],
 };
 
 const PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -135,6 +145,7 @@ export const AISettingsButton = ({
   const [settings, setSettings] = useState<AISettings>(getDefaultAISettings);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isEditingKey, setIsEditingKey] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem("excalidraw-ai-settings-v1");
@@ -144,6 +155,7 @@ export const AISettingsButton = ({
         .then((nextSettings) => {
           setSettings(nextSettings);
           setError("");
+          setIsEditingKey(!nextSettings.hasApiKey);
         })
         .catch((error: Error) => setError(error.message));
     }
@@ -165,6 +177,7 @@ export const AISettingsButton = ({
     try {
       const nextSettings = await saveAISettings(settings);
       setSettings(nextSettings);
+      setIsEditingKey(false);
       setMessage("Saved");
     } catch (error: any) {
       setError(error.message || "AI settings save failed");
@@ -179,6 +192,7 @@ export const AISettingsButton = ({
     try {
       await aiFetch<null>("/api/ai/settings", { method: "DELETE" });
       setSettings(getDefaultAISettings());
+      setIsEditingKey(true);
       setMessage("Removed");
     } catch (error: any) {
       setError(error.message || "AI settings remove failed");
@@ -227,6 +241,14 @@ export const AISettingsButton = ({
             </button>
           </div>
           <div className="AISettings__subheader">Provider settings</div>
+          {settings.hasApiKey && !isEditingKey && (
+            <div className="AISettings__connected">
+              <span>Connected</span>
+              <button type="button" onClick={() => setIsEditingKey(true)}>
+                Change key
+              </button>
+            </div>
+          )}
           <label className="AISettings__label" htmlFor="ai-provider">
             Provider
           </label>
@@ -240,7 +262,9 @@ export const AISettingsButton = ({
                 ...settings,
                 provider,
                 model: DEFAULT_MODELS[provider],
+                hasApiKey: provider === settings.provider && settings.hasApiKey,
               });
+              setIsEditingKey(provider !== settings.provider);
             }}
           >
             {(["openai", "anthropic", "deepseek"] as const).map((provider) => (
@@ -255,28 +279,38 @@ export const AISettingsButton = ({
           <input
             id="ai-model"
             className="AISettings__input"
+            list={`ai-model-options-${settings.provider}`}
             value={settings.model}
             onChange={(event) =>
               updateSettings({ ...settings, model: event.target.value })
             }
           />
-          <label className="AISettings__label" htmlFor="ai-api-key">
-            API key
-          </label>
-          <input
-            id="ai-api-key"
-            className="AISettings__input"
-            type="password"
-            placeholder={`${PROVIDER_LABELS[settings.provider]} API key`}
-            value={settings.apiKey}
-            onChange={(event) =>
-              updateSettings({ ...settings, apiKey: event.target.value })
-            }
-          />
-          {settings.hasApiKey && !settings.apiKey && (
-            <div className="AISettings__hint">
-              An encrypted API key is saved in your account.
-            </div>
+          <datalist id={`ai-model-options-${settings.provider}`}>
+            {MODEL_OPTIONS[settings.provider].map((model) => (
+              <option key={model} value={model} />
+            ))}
+          </datalist>
+          {(!settings.hasApiKey || isEditingKey) && (
+            <>
+              <label className="AISettings__label" htmlFor="ai-api-key">
+                API key
+              </label>
+              <input
+                id="ai-api-key"
+                className="AISettings__input"
+                type="password"
+                placeholder={`${PROVIDER_LABELS[settings.provider]} API key`}
+                value={settings.apiKey}
+                onChange={(event) =>
+                  updateSettings({ ...settings, apiKey: event.target.value })
+                }
+              />
+              {settings.hasApiKey && (
+                <div className="AISettings__hint">
+                  Leave blank to keep the saved encrypted key.
+                </div>
+              )}
+            </>
           )}
           {error && <div className="AISettings__error">{error}</div>}
           <div className="AISettings__actions">

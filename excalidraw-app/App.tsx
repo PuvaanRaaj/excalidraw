@@ -133,6 +133,7 @@ import DebugCanvas, {
   loadSavedDebugState,
 } from "./components/DebugCanvas";
 import { AIComponents, AISettingsButton } from "./components/AI";
+import { AuthGate } from "./cloud/AuthGate";
 import { CloudSync } from "./cloud/CloudSync";
 
 import "./index.scss";
@@ -1194,7 +1195,9 @@ const ExcalidrawApp = () => {
     <TopErrorBoundary>
       <Provider store={appJotaiStore}>
         <ExcalidrawAPIProvider>
-          <ExcalidrawWrapper />
+          <AuthGate>
+            <ExcalidrawWrapper />
+          </AuthGate>
         </ExcalidrawAPIProvider>
       </Provider>
     </TopErrorBoundary>
