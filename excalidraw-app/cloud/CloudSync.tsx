@@ -1,4 +1,5 @@
 import { getSceneVersion } from "@excalidraw/element";
+import { randomId } from "@excalidraw/common";
 import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -110,6 +111,94 @@ const normalizeDrawing = (drawing: CloudDrawing) => ({
   appState: drawing.app_state,
   files: drawing.files as BinaryFiles,
 });
+
+const getElementsBounds = (elements: readonly ExcalidrawElement[]) => {
+  const visibleElements = elements.filter((element) => !element.isDeleted);
+
+  if (!visibleElements.length) {
+    return null;
+  }
+
+  return visibleElements.reduce(
+    (bounds, element) => ({
+      minX: Math.min(bounds.minX, element.x),
+      minY: Math.min(bounds.minY, element.y),
+      maxX: Math.max(bounds.maxX, element.x + (element.width || 0)),
+    }),
+    {
+      minX: Number.POSITIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+    },
+  );
+};
+
+const cloneElementsForImport = (
+  elements: readonly ExcalidrawElement[],
+  currentElements: readonly ExcalidrawElement[],
+) => {
+  const idMap = new Map<string, string>();
+  const groupIdMap = new Map<string, string>();
+  const importedBounds = getElementsBounds(elements);
+  const currentBounds = getElementsBounds(currentElements);
+  const offsetX =
+    importedBounds && currentBounds
+      ? currentBounds.maxX - importedBounds.minX + 120
+      : 80;
+  const offsetY =
+    importedBounds && currentBounds
+      ? currentBounds.minY - importedBounds.minY
+      : 80;
+
+  elements.forEach((element) => {
+    idMap.set(element.id, randomId());
+    (element.groupIds || []).forEach((groupId) => {
+      if (!groupIdMap.has(groupId)) {
+        groupIdMap.set(groupId, randomId());
+      }
+    });
+  });
+
+  return elements.map((element) => {
+    const clone: any = JSON.parse(JSON.stringify(element));
+    clone.id = idMap.get(element.id) || randomId();
+    clone.x = element.x + offsetX;
+    clone.y = element.y + offsetY;
+    clone.version = 1;
+    clone.versionNonce = Math.floor(Math.random() * 2 ** 31);
+    clone.updated = Date.now();
+    clone.groupIds = (element.groupIds || []).map(
+      (groupId) => groupIdMap.get(groupId) || groupId,
+    );
+
+    if (clone.boundElements) {
+      clone.boundElements = clone.boundElements.map((boundElement: any) => ({
+        ...boundElement,
+        id: idMap.get(boundElement.id) || boundElement.id,
+      }));
+    }
+
+    if (clone.containerId) {
+      clone.containerId = idMap.get(clone.containerId) || clone.containerId;
+    }
+
+    if (clone.frameId) {
+      clone.frameId = idMap.get(clone.frameId) || clone.frameId;
+    }
+
+    if (clone.startBinding?.elementId) {
+      clone.startBinding.elementId =
+        idMap.get(clone.startBinding.elementId) || clone.startBinding.elementId;
+    }
+
+    if (clone.endBinding?.elementId) {
+      clone.endBinding.elementId =
+        idMap.get(clone.endBinding.elementId) || clone.endBinding.elementId;
+    }
+
+    return clone as ExcalidrawElement;
+  });
+};
 
 const mergeDrawingSummary = (
   drawings: CloudDrawingSummary[],
@@ -224,6 +313,14 @@ export const CloudSync = ({
 
       return [...nextDrawings, ...keep];
     });
+  };
+
+  const refreshAllDrawings = async () => {
+    const [activeDrawings, trashedDrawings] = await Promise.all([
+      listDrawings(),
+      listDrawings({ trash: true }),
+    ]);
+    setDrawings([...activeDrawings, ...trashedDrawings]);
   };
 
   const refreshShareLinks = async (id = activeDrawingId) => {
@@ -568,6 +665,66 @@ export const CloudSync = ({
     setMessage("Copied link");
   };
 
+  const handleShareCloud = async () => {
+    if (!activeDrawingId) {
+      setMessage("Save the canvas before sharing");
+      return;
+    }
+
+    setIsBusy(true);
+    setError("");
+    setMessage("Creating link...");
+
+    try {
+      const existingViewLink = shareLinks.find(
+        (share) => share.permission === "view" && getShareId(share),
+      );
+      const share =
+        existingViewLink || (await createShareLink(activeDrawingId, "view"));
+      const shareId = share ? getShareId(share) : "";
+
+      if (!shareId) {
+        throw new Error("Share link was not returned");
+      }
+
+      await navigator.clipboard.writeText(makeShareUrl(shareId));
+      await refreshShareLinks(activeDrawingId);
+      setMessage("Cloud link copied");
+    } catch (error: any) {
+      setError(error.message || "Share failed");
+      setMessage("");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleImport = async (id: string) => {
+    setIsBusy(true);
+    setError("");
+    setMessage("Importing...");
+
+    try {
+      const drawing = await getDrawing(id);
+      const data = normalizeDrawing(drawing);
+      const currentElements = excalidrawAPI.getSceneElementsIncludingDeleted();
+      const importedElements = cloneElementsForImport(
+        data.elements,
+        currentElements,
+      );
+
+      excalidrawAPI.addFiles(Object.values(data.files));
+      excalidrawAPI.updateScene({
+        elements: [...currentElements, ...importedElements],
+      });
+      lastSavedVersionRef.current = null;
+      setMessage(`Imported "${drawing.title}"`);
+    } catch (error: any) {
+      setError(error.message || "Import failed");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const handleRestoreVersion = async (versionId: string) => {
     if (!activeDrawingId) {
       return;
@@ -707,6 +864,14 @@ export const CloudSync = ({
                   className="CloudSync__button"
                   type="button"
                   disabled={isBusy}
+                  onClick={handleShareCloud}
+                >
+                  Share cloud
+                </button>
+                <button
+                  className="CloudSync__button"
+                  type="button"
+                  disabled={isBusy}
                   onClick={() =>
                     refreshDrawings({ trash: view === "trash" }).catch(
                       (error: Error) => setError(error.message),
@@ -714,6 +879,18 @@ export const CloudSync = ({
                   }
                 >
                   Refresh
+                </button>
+                <button
+                  className="CloudSync__button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() =>
+                    refreshAllDrawings().catch((error: Error) =>
+                      setError(error.message),
+                    )
+                  }
+                >
+                  Refresh all
                 </button>
                 <button
                   className="CloudSync__button"
@@ -961,14 +1138,24 @@ export const CloudSync = ({
                       </div>
                       <div className="CloudSync__actions">
                         {!trashed && (
-                          <button
-                            className="CloudSync__button"
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => handleOpen(drawing.id)}
-                          >
-                            Open
-                          </button>
+                          <>
+                            <button
+                              className="CloudSync__button"
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleOpen(drawing.id)}
+                            >
+                              Open
+                            </button>
+                            <button
+                              className="CloudSync__button"
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleImport(drawing.id)}
+                            >
+                              Import
+                            </button>
+                          </>
                         )}
                         {trashed ? (
                           <button

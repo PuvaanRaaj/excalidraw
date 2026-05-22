@@ -11,6 +11,9 @@ export const notifyCloudAuthChanged = () => {
 };
 
 export const AuthGate = ({ children }: { children: React.ReactNode }) => {
+  const isSharedCanvas = /^\/shared\/[a-zA-Z0-9_-]+$/.test(
+    window.location.pathname,
+  );
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,6 +80,10 @@ export const AuthGate = ({ children }: { children: React.ReactNode }) => {
       setIsBusy(false);
     }
   };
+
+  if (isSharedCanvas) {
+    return <>{children}</>;
+  }
 
   if (isChecking) {
     return <div className="AuthGate AuthGate--loading">Loading...</div>;

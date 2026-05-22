@@ -210,10 +210,13 @@ type AISettings = {
 };
 
 const TEXT_TO_DIAGRAM_SYSTEM_PROMPT = [
-  "You convert user requests into Mermaid diagrams for Excalidraw.",
-  "Return only valid Mermaid code.",
-  "Do not wrap the answer in markdown fences.",
-  "Prefer flowchart, sequenceDiagram, classDiagram, stateDiagram, or erDiagram when appropriate.",
+  "You convert user requests into polished Mermaid diagrams for Excalidraw.",
+  "Return only valid Mermaid code. Do not wrap the answer in markdown fences.",
+  "Prefer flowchart diagrams for articles, architecture, product flows, workflows, research summaries, strategy maps, and vague requests.",
+  "Use stateDiagram only when the user explicitly asks for a lifecycle/state machine.",
+  "For article or long-form content, create a complete visual summary with 5-8 grouped sections, clear titles, concise node text, and directional relationships.",
+  "Use subgraphs, meaningful edge labels, and classDef styles so the imported Excalidraw result looks like a designed diagram, not a tiny sketch.",
+  "Keep node text short enough to fit inside boxes. Avoid paragraphs inside nodes.",
 ].join(" ");
 
 const DIAGRAM_TO_CODE_SYSTEM_PROMPT = [
@@ -242,6 +245,95 @@ const stripMarkdownFences = (text: string) =>
     .replace(/^```(?:html|mermaid)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
+
+const extractUrls = (messages: readonly LLMMessage[]) => {
+  const urls = messages
+    .filter((message) => message.role === "user")
+    .flatMap((message) => message.content.match(/https?:\/\/[^\s)]+/g) || [])
+    .map((url) => url.replace(/[.,;:!?]+$/, ""));
+
+  return Array.from(new Set(urls)).slice(0, 2);
+};
+
+const htmlToText = (html: string) =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const fetchUrlContext = async (url: string) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Excalidraw-AI-Diagram/1.0",
+        Accept: "text/html, text/plain;q=0.9, */*;q=0.8",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return "";
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const body = await response.text();
+    const text = contentType.includes("text/html") ? htmlToText(body) : body;
+
+    return text.slice(0, 12000);
+  } catch {
+    return "";
+  }
+};
+
+const enrichMessagesWithUrlContext = async (
+  messages: readonly LLMMessage[],
+) => {
+  const urls = extractUrls(messages);
+
+  if (!urls.length) {
+    return messages;
+  }
+
+  const contexts = (
+    await Promise.all(
+      urls.map(async (url) => ({
+        url,
+        text: await fetchUrlContext(url),
+      })),
+    )
+  ).filter((context) => context.text);
+
+  if (!contexts.length) {
+    return messages;
+  }
+
+  return [
+    ...messages,
+    {
+      role: "user" as const,
+      content: [
+        "Fetched source material for the diagram:",
+        ...contexts.map(
+          (context, index) =>
+            `Source ${index + 1}: ${context.url}\n${context.text}`,
+        ),
+        "Create a complete Excalidraw-friendly visual summary from the source material.",
+      ].join("\n\n"),
+    },
+  ];
+};
 
 const toOpenAICompatibleMessages = (
   systemPrompt: string,
@@ -332,14 +424,20 @@ export const generateTextToDiagram = async (
   settings: AISettings,
   messages: readonly LLMMessage[],
 ) => {
+  const enrichedMessages = await enrichMessagesWithUrlContext(messages);
+
   if (settings.provider === "anthropic") {
-    return callAnthropicText(settings, TEXT_TO_DIAGRAM_SYSTEM_PROMPT, messages);
+    return callAnthropicText(
+      settings,
+      TEXT_TO_DIAGRAM_SYSTEM_PROMPT,
+      enrichedMessages,
+    );
   }
 
   return callOpenAICompatibleText(
     settings,
     TEXT_TO_DIAGRAM_SYSTEM_PROMPT,
-    messages,
+    enrichedMessages,
     settings.provider === "deepseek"
       ? "https://api.deepseek.com/chat/completions"
       : "https://api.openai.com/v1/chat/completions",
