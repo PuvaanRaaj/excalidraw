@@ -1,0 +1,92 @@
+.MCPBridge {
+  position: relative;
+}
+
+.MCPBridge__toggle {
+  height: 2.5rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 1rem;
+  background: var(--island-bg-color);
+  color: var(--text-primary-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-island);
+}
+
+.MCPBridge__panel {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  z-index: 10;
+  width: min(360px, calc(100vw - 2rem));
+  padding: 1rem;
+  border: 1px solid var(--default-border-color);
+  border-radius: 8px;
+  background: var(--island-bg-color);
+  color: var(--text-primary-color);
+  box-shadow: var(--shadow-island);
+}
+
+.MCPBridge__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.MCPBridge__header span:last-child,
+.MCPBridge__hint {
+  color: var(--text-secondary-color);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.MCPBridge__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.MCPBridge__input {
+  width: 100%;
+  height: 2.4rem;
+  border: 1px solid var(--default-border-color);
+  border-radius: 6px;
+  padding: 0 0.65rem;
+  background: var(--input-bg-color);
+  color: var(--text-primary-color);
+  font: 0.85rem "SF Mono", Consolas, monospace;
+}
+
+.MCPBridge__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.MCPBridge__button {
+  min-height: 2.2rem;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 0.8rem;
+  background: var(--button-gray-1);
+  color: var(--text-primary-color);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.MCPBridge__button--primary {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.MCPBridge__hint {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}

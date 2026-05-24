@@ -135,6 +135,7 @@ import DebugCanvas, {
 import { AIComponents, AISettingsButton } from "./components/AI";
 import { AuthGate } from "./cloud/AuthGate";
 import { CloudSync } from "./cloud/CloudSync";
+import { MCPBridge } from "./components/MCPBridge";
 
 import "./index.scss";
 
@@ -961,6 +962,7 @@ const ExcalidrawWrapper = () => {
                 <AISettingsButton excalidrawAPI={excalidrawAPI} />
               )}
               {excalidrawAPI && <CloudSync excalidrawAPI={excalidrawAPI} />}
+              {excalidrawAPI && <MCPBridge excalidrawAPI={excalidrawAPI} />}
               {!isCollabDisabled && collabAPI && (
                 <>
                   {collabError.message && (
